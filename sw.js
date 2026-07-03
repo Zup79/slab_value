@@ -1,5 +1,5 @@
 /* Slab Value service worker — bump VERSION to push an update */
-const VERSION = 'slab-value-v1';
+const VERSION = 'slab-value-v4';
 const SHELL = [
   './',
   './index.html',

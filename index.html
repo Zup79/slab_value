@@ -30,7 +30,7 @@
     padding:max(18px,env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
   }
   .wrap{max-width:560px;margin:0 auto}
-  header{margin:6px 2px 20px}
+  header{margin:6px 2px 18px}
   .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--honey);font-weight:600;margin:0 0 6px}
   h1{font-family:var(--display);font-weight:560;font-size:34px;line-height:1.02;color:var(--paper);margin:0;letter-spacing:-.01em}
   h1 em{font-style:italic;color:var(--honey-bright)}
@@ -45,6 +45,10 @@
   .toggle button{flex:1;border:0;background:transparent;padding:9px 4px;border-radius:8px;font:inherit;
     font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
   .toggle button[aria-pressed="true"]{background:var(--forest);color:var(--paper);box-shadow:0 2px 8px -3px rgba(0,0,0,.5)}
+  /* top-level screen tabs */
+  .tabs{background:rgba(20,32,25,.5);border:1px solid rgba(244,236,218,.14);margin:0 0 14px}
+  .tabs button{padding:12px 6px;font-size:14px;color:rgba(244,236,218,.7)}
+  .tabs button[aria-pressed="true"]{background:var(--honey);color:var(--tannin);box-shadow:none}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .field{display:flex;flex-direction:column;gap:5px}
   .field.full{grid-column:1/-1}
@@ -106,11 +110,16 @@
   <header>
     <p class="eyebrow">Glisten &amp; Bark</p>
     <h1>Slab <em>value</em></h1>
-    <p class="sub">Dimensions and a price in &mdash; cost per cube, cost per m&sup2;, a suggested price and a verdict.</p>
+    <p class="sub">Enter a slab once, in mm or inches &mdash; price it by the square metre or the super foot.</p>
   </header>
 
+  <!-- SHARED: the slab -->
   <div class="card">
     <h2><span class="n">1</span>The slab</h2>
+    <div class="toggle" role="group" aria-label="Units">
+      <button id="unitMM" aria-pressed="true" onclick="setUnit('mm')">Metric (mm)</button>
+      <button id="unitIN" aria-pressed="false" onclick="setUnit('in')">Imperial (in)</button>
+    </div>
     <div class="toggle" role="group" aria-label="Shape">
       <button id="shapeRect" aria-pressed="true" onclick="setShape('rect')">Rectangular</button>
       <button id="shapeIrr" aria-pressed="false" onclick="setShape('irr')">Irregular / live edge</button>
@@ -118,11 +127,11 @@
     <div class="grid">
       <div class="field">
         <label for="len">Length</label>
-        <div class="input"><input id="len" type="number" inputmode="decimal" placeholder="0" oninput="calc()"><span class="unit">mm</span></div>
+        <div class="input"><input id="len" type="number" inputmode="decimal" placeholder="0" oninput="calc()"><span class="unit" id="uLen">mm</span></div>
       </div>
       <div class="field" id="widthField">
         <label for="wid" id="widLabel">Width</label>
-        <div class="input"><input id="wid" type="number" inputmode="decimal" placeholder="0" oninput="calc()"><span class="unit">mm</span></div>
+        <div class="input"><input id="wid" type="number" inputmode="decimal" placeholder="0" oninput="calc()"><span class="unit" id="uWid">mm</span></div>
       </div>
       <div class="field" id="usableField" style="display:none">
         <label for="usable">Usable</label>
@@ -130,7 +139,7 @@
       </div>
       <div class="field">
         <label for="thk">Thickness</label>
-        <div class="input"><input id="thk" type="number" inputmode="decimal" placeholder="10" oninput="calc()"><span class="unit">mm</span></div>
+        <div class="input"><input id="thk" type="number" inputmode="decimal" placeholder="10" oninput="calc()"><span class="unit" id="uThk">mm</span></div>
       </div>
       <div class="field">
         <label for="price">Price (if buying)</label>
@@ -140,74 +149,147 @@
     <p class="hint" id="irrHint" style="display:none">Average a few width readings along the slab. Drop the usable % to discount sapwood, checks or voids you'd cut out.</p>
   </div>
 
-  <div class="results">
-    <div class="headline">
-      <div class="big" id="perM2">$0<small>/m&sup2;</small></div>
-      <div class="secondary">
-        <div class="v" id="perM3">$0</div>
-        <div class="l">per m&sup3;</div>
+  <!-- SCREEN TABS -->
+  <div class="toggle tabs" role="group" aria-label="Pricing mode">
+    <button id="tabBtnM2" aria-pressed="true" onclick="setTab('m2')">Per m&sup2;</button>
+    <button id="tabBtnSF" aria-pressed="false" onclick="setTab('sf')">Super foot</button>
+  </div>
+
+  <!-- ============ SCREEN A: per m2 ============ -->
+  <div id="tabM2">
+    <div class="results">
+      <div class="headline">
+        <div class="big" id="perM2">$0<small>/m&sup2;</small></div>
+        <div class="secondary">
+          <div class="v" id="perM3">$0</div>
+          <div class="l">per m&sup3;</div>
+        </div>
+      </div>
+      <div class="metarow">
+        <div><div class="l">Face area</div><div class="v" id="area">0 m&sup2;</div></div>
+        <div><div class="l">Volume</div><div class="v" id="vol">0 m&sup3;</div></div>
       </div>
     </div>
-    <div class="metarow">
-      <div><div class="l">Face area</div><div class="v" id="area">0 m&sup2;</div></div>
-      <div><div class="l">Volume</div><div class="v" id="vol">0 m&sup3;</div></div>
+
+    <div class="card">
+      <h2><span class="n">2</span>Grade &amp; price band <span style="font-weight:400;color:var(--muted);font-size:12px;font-family:var(--sans)">($/m&sup2;)</span></h2>
+      <div class="toggle" role="group" aria-label="Grade">
+        <button id="gFigured" aria-pressed="true" onclick="setGrade('figured')">Figured</button>
+        <button id="gFeature" aria-pressed="false" onclick="setGrade('feature')">Some feature</button>
+        <button id="gJunk" aria-pressed="false" onclick="setGrade('junk')">Junk</button>
+      </div>
+      <div class="grid">
+        <div class="field">
+          <label for="bmin">Good below</label>
+          <div class="input"><span class="unit" style="padding:0 4px 0 0">$</span><input id="bmin" type="number" inputmode="decimal" placeholder="0" oninput="bandInput()"><span class="unit">/m&sup2;</span></div>
+        </div>
+        <div class="field">
+          <label for="bmax">Too dear above</label>
+          <div class="input"><span class="unit" style="padding:0 4px 0 0">$</span><input id="bmax" type="number" inputmode="decimal" placeholder="0" oninput="bandInput()"><span class="unit">/m&sup2;</span></div>
+        </div>
+      </div>
+      <div class="suggest">
+        <div class="srow">
+          <div><div class="l">Median rate</div><div class="vv" id="median">&mdash;</div></div>
+          <div class="sprice"><div class="l">Suggested for this piece</div><div class="vbig" id="suggest">$&mdash;</div></div>
+        </div>
+      </div>
+      <div class="verdict">
+        <span class="badge none" id="badge">Set a band</span>
+      </div>
+      <div class="gauge"><div class="zone" id="zone"></div><div class="mark" id="mark" style="left:0%;display:none"></div></div>
+      <div class="gscale"><span id="gmin">$0</span><span id="gmax">$0</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">3</span>Compare</h2>
+      <div class="row-actions">
+        <button class="btn primary" onclick="addSlab()">Save this slab</button>
+        <button class="btn ghost" onclick="clearSlabs()">Clear</button>
+      </div>
+      <table id="tbl" style="display:none">
+        <thead><tr><th>Slab</th><th class="r">$/m&sup2;</th><th class="r">$/m&sup3;</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <p class="empty" id="emptyMsg">Saved slabs line up here so you can pick the best value.</p>
     </div>
   </div>
 
-  <div class="card">
-    <h2><span class="n">2</span>Grade &amp; price band <span style="font-weight:400;color:var(--muted);font-size:12px;font-family:var(--sans)">($/m&sup2;)</span></h2>
-    <div class="toggle" role="group" aria-label="Grade">
-      <button id="gFigured" aria-pressed="true" onclick="setGrade('figured')">Figured</button>
-      <button id="gFeature" aria-pressed="false" onclick="setGrade('feature')">Some feature</button>
-      <button id="gJunk" aria-pressed="false" onclick="setGrade('junk')">Junk</button>
-    </div>
-    <div class="grid">
-      <div class="field">
-        <label for="bmin">Good below</label>
-        <div class="input"><span class="unit" style="padding:0 4px 0 0">$</span><input id="bmin" type="number" inputmode="decimal" placeholder="0" oninput="bandInput()"><span class="unit">/m&sup2;</span></div>
+  <!-- ============ SCREEN B: super foot ============ -->
+  <div id="tabSF" style="display:none">
+    <div class="results">
+      <div class="headline">
+        <div class="big" id="superft">0<small> super ft</small></div>
+        <div class="secondary">
+          <div class="v" id="sfSuggest">$0</div>
+          <div class="l">suggested sell</div>
+        </div>
       </div>
-      <div class="field">
-        <label for="bmax">Too dear above</label>
-        <div class="input"><span class="unit" style="padding:0 4px 0 0">$</span><input id="bmax" type="number" inputmode="decimal" placeholder="0" oninput="bandInput()"><span class="unit">/m&sup2;</span></div>
+      <div class="metarow">
+        <div><div class="l">Super-foot formula (this piece)</div><div class="v" id="sfFormula" style="font-family:var(--sans);font-weight:500;font-size:13px">length ft &times; width in &times; thick in &divide; 12</div></div>
       </div>
     </div>
 
-    <div class="suggest">
-      <div class="srow">
-        <div><div class="l">Median rate</div><div class="vv" id="median">&mdash;</div></div>
-        <div class="sprice"><div class="l">Suggested for this piece</div><div class="vbig" id="suggest">$&mdash;</div></div>
+    <div class="card">
+      <h2><span class="n">2</span>Category &amp; rate <span style="font-weight:400;color:var(--muted);font-size:12px;font-family:var(--sans)">($/super ft)</span></h2>
+      <div class="toggle" role="group" aria-label="Category">
+        <button id="sfFigured" aria-pressed="true" onclick="setSfCat('figured')">Figured</button>
+        <button id="sfPlain" aria-pressed="false" onclick="setSfCat('plain')">Plain</button>
       </div>
+      <div class="grid">
+        <div class="field full">
+          <label>Rate for <span id="sfCatName">Figured</span></label>
+          <div class="input"><span class="unit" style="padding:0 4px 0 0">$</span><input id="sfRate" type="number" inputmode="decimal" placeholder="0" oninput="sfRateInput()"><span class="unit">/super ft</span></div>
+        </div>
+      </div>
+      <div class="suggest">
+        <div class="srow">
+          <div><div class="l">Rate</div><div class="vv" id="sfRateShow">&mdash;</div></div>
+          <div class="sprice"><div class="l">Suggested for this piece</div><div class="vbig" id="sfSuggest2">$&mdash;</div></div>
+        </div>
+      </div>
+      <div id="sfBuyWrap" class="verdict" style="display:none">
+        <span class="badge none" id="sfBuy"></span>
+      </div>
+      <p class="hint" style="margin-top:6px">1 super foot = a board 1&nbsp;ft &times; 1&nbsp;ft &times; 1&nbsp;in (144&nbsp;cu&nbsp;in). Suggested sell = super feet &times; rate.</p>
     </div>
-
-    <div class="verdict">
-      <span class="badge none" id="badge">Set a band</span>
-    </div>
-    <div class="gauge"><div class="zone" id="zone"></div><div class="mark" id="mark" style="left:0%;display:none"></div></div>
-    <div class="gscale"><span id="gmin">$0</span><span id="gmax">$0</span></div>
   </div>
 
-  <div class="card">
-    <h2><span class="n">3</span>Compare</h2>
-    <div class="row-actions">
-      <button class="btn primary" onclick="addSlab()">Save this slab</button>
-      <button class="btn ghost" onclick="clearSlabs()">Clear</button>
-    </div>
-    <table id="tbl" style="display:none">
-      <thead><tr><th>Slab</th><th class="r">$/m&sup2;</th><th class="r">$/m&sup3;</th><th></th></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
-    <p class="empty" id="emptyMsg">Saved slabs line up here so you can pick the best value.</p>
-  </div>
-
-  <p class="footnote"><b>Bands &amp; suggested price work in $/m&sup2;</b> (show-face) &mdash; how you grade and sell. <b>$/m&sup3;</b> is the thickness-proof cross-check for raw buying.</p>
+  <p class="footnote"><b>Two ways to price, one slab.</b> Per m&sup2; for show-face grading; per super foot for the timber trade. Change the dimensions once and both update.</p>
 </div>
 
 <script>
-let shape='rect';
-let grade='figured';
+let shape='rect', grade='figured', sfCat='figured', tab='m2', unit='mm';
+let bands={figured:{lo:'220',hi:'250'}, feature:{lo:'190',hi:'230'}, junk:{lo:'170',hi:'200'}};
+let sfRates={figured:'55', plain:'40'};
 let saved=[];
 const gradeNames={figured:'Figured', feature:'Some feature', junk:'Junk'};
-let bands={figured:{lo:'220',hi:'250'}, feature:{lo:'190',hi:'230'}, junk:{lo:'170',hi:'200'}};
+const sfCatNames={figured:'Figured', plain:'Plain'};
+
+function setTab(t){
+  tab=t;
+  document.getElementById('tabBtnM2').setAttribute('aria-pressed', t==='m2');
+  document.getElementById('tabBtnSF').setAttribute('aria-pressed', t==='sf');
+  document.getElementById('tabM2').style.display = t==='m2' ? 'block':'none';
+  document.getElementById('tabSF').style.display = t==='sf' ? 'block':'none';
+  persist(); calc();
+}
+
+function setUnit(u){
+  if(u===unit){ return; }
+  // convert existing entries in-place
+  const f = (u==='in') ? (1/25.4) : 25.4;
+  ['len','wid','thk'].forEach(id=>{
+    const el=document.getElementById(id);
+    const v=parseFloat(el.value);
+    if(v>0){ el.value = (u==='in') ? +(v*f).toFixed(3) : +(v*f).toFixed(1); }
+  });
+  unit=u;
+  document.getElementById('unitMM').setAttribute('aria-pressed', u==='mm');
+  document.getElementById('unitIN').setAttribute('aria-pressed', u==='in');
+  ['uLen','uWid','uThk'].forEach(id=>document.getElementById(id).textContent = u);
+  persist(); calc();
+}
 
 function setShape(s){
   shape=s;
@@ -228,25 +310,39 @@ function setGrade(g){
   document.getElementById('bmax').value = bands[g].hi;
   calc();
 }
-
 function bandInput(){
   bands[grade].lo = document.getElementById('bmin').value;
   bands[grade].hi = document.getElementById('bmax').value;
-  persist();
+  persist(); calc();
+}
+
+function setSfCat(c){
+  sfCat=c;
+  document.getElementById('sfFigured').setAttribute('aria-pressed', c==='figured');
+  document.getElementById('sfPlain').setAttribute('aria-pressed', c==='plain');
+  document.getElementById('sfCatName').textContent = sfCatNames[c];
+  document.getElementById('sfRate').value = sfRates[c];
   calc();
+}
+function sfRateInput(){
+  sfRates[sfCat] = document.getElementById('sfRate').value;
+  persist(); calc();
 }
 
 const num = id => parseFloat(document.getElementById(id).value) || 0;
 const money = v => '$' + (v>=1000 ? Math.round(v).toLocaleString() : v.toFixed(2).replace(/\.00$/,''));
 
 function compute(){
-  const L=num('len'), W=num('wid'), T=num('thk'), P=num('price');
+  const k = (unit==='in') ? 25.4 : 1;   // canonical mm
+  const L=num('len')*k, W=num('wid')*k, T=num('thk')*k, P=num('price');
   const usable = shape==='irr' ? (num('usable')||100)/100 : 1;
-  const area = (L/1000)*(W/1000)*usable;
-  const vol  = area*(T/1000);
+  const area = (L/1000)*(W/1000)*usable;     // m2
+  const vol  = area*(T/1000);                 // m3
   const perM2 = area>0 ? P/area : 0;
   const perM3 = vol>0 ? P/vol : 0;
-  return {L,W,T,P,area,vol,perM2,perM3};
+  const superfeet = vol*423.776;              // 1 m3 = 61023.7 cu in / 144
+  const Lft=L/304.8, Win=(W*usable)/25.4, Tin=T/25.4;
+  return {L,W,T,P,area,vol,perM2,perM3,superfeet,Lft,Win,Tin};
 }
 
 function medianRate(){
@@ -256,18 +352,39 @@ function medianRate(){
 
 function calc(){
   const r=compute();
+
+  // --- per m2 screen ---
   document.getElementById('perM2').innerHTML = (r.perM2?money(r.perM2):'$0') + '<small>/m&sup2;</small>';
   document.getElementById('perM3').textContent = r.perM3?money(r.perM3):'$0';
   document.getElementById('area').innerHTML = r.area.toFixed(r.area<1?3:2) + ' m&sup2;';
   document.getElementById('vol').innerHTML = (r.vol<0.01? r.vol.toFixed(4): r.vol.toFixed(3)) + ' m&sup3;';
-
-  // suggested price = median $/m2 x this piece's area
   const m=medianRate();
   document.getElementById('median').innerHTML = m ? (money(m)+'<span style="font-size:11px;color:var(--muted)">/m&sup2;</span>') : '&mdash;';
-  const sug = (m>0 && r.area>0) ? m*r.area : 0;
+  const sug=(m>0 && r.area>0)? m*r.area:0;
   document.getElementById('suggest').innerHTML = sug ? money(sug) : '$&mdash;';
-
   drawGauge(r.perM2);
+
+  // --- super foot screen ---
+  const sf=r.superfeet;
+  document.getElementById('superft').innerHTML = (sf? sf.toFixed(2):'0') + '<small> super ft</small>';
+  document.getElementById('sfFormula').innerHTML = (r.Lft>0&&r.Win>0&&r.Tin>0)
+    ? (r.Lft.toFixed(2)+' ft &times; '+r.Win.toFixed(2)+' in &times; '+r.Tin.toFixed(2)+' in &divide; 12')
+    : 'length ft &times; width in &times; thick in &divide; 12';
+  const rate=parseFloat(sfRates[sfCat])||0;
+  const sell=(sf>0 && rate>0)? sf*rate:0;
+  document.getElementById('sfSuggest').textContent = sell? money(sell):'$0';
+  document.getElementById('sfRateShow').innerHTML = rate ? (money(rate)+'<span style="font-size:11px;color:var(--muted)">/super ft</span>') : '&mdash;';
+  document.getElementById('sfSuggest2').innerHTML = sell? money(sell) : '$&mdash;';
+
+  const wrap=document.getElementById('sfBuyWrap'), buy=document.getElementById('sfBuy');
+  if(r.P>0 && sf>0){
+    const actual=r.P/sf;
+    wrap.style.display='flex';
+    if(rate>0){
+      if(actual<=rate){ buy.className='badge good'; buy.textContent="You'd pay "+money(actual)+"/super ft — under your "+money(rate)+" rate"; }
+      else { buy.className='badge over'; buy.textContent="You'd pay "+money(actual)+"/super ft — over your "+money(rate)+" rate"; }
+    } else { buy.className='badge none'; buy.textContent=money(actual)+"/super ft"; }
+  } else { wrap.style.display='none'; }
 }
 
 function drawGauge(perM2){
@@ -287,17 +404,13 @@ function drawGauge(perM2){
   const axMin=Math.max(0, lo-span*0.6);
   const axMax=hi+span*0.6;
   const pct=v=>Math.max(0,Math.min(100,(v-axMin)/(axMax-axMin)*100));
-
   zone.style.left=pct(lo)+'%';
   zone.style.width=(pct(hi)-pct(lo))+'%';
-  gmin.textContent=money(axMin);
-  gmax.textContent=money(axMax);
+  gmin.textContent=money(axMin); gmax.textContent=money(axMax);
 
   if(!(perM2>0)){ mark.style.display='none'; badge.className='badge none'; badge.textContent='Enter a buy price to check'; return; }
-
   mark.style.display='block';
   mark.style.left=pct(perM2)+'%';
-
   if(perM2<lo){ badge.className='badge good'; badge.textContent='Under range — good buy'; mark.style.background='var(--good)'; }
   else if(perM2<=hi){ badge.className='badge warn'; badge.textContent='In range — fair'; mark.style.background='var(--warn)'; }
   else { badge.className='badge over'; badge.textContent='Over range — too dear'; mark.style.background='var(--over)'; }
@@ -334,13 +447,23 @@ function render(){
 function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 /* persistence — localStorage, works in a real hosted PWA */
-function persist(){ try{ localStorage.setItem('slabValue_v2', JSON.stringify({bands,saved})); }catch(e){} }
+function stateObj(){ return {bands,saved,sfRates,grade,sfCat,tab,unit}; }
+function persist(){ try{ localStorage.setItem('slabValue_v3', JSON.stringify(stateObj())); }catch(e){} }
+function applyState(){
+  // apply unit without converting (values were saved per-session anyway)
+  document.getElementById('unitMM').setAttribute('aria-pressed', unit==='mm');
+  document.getElementById('unitIN').setAttribute('aria-pressed', unit==='in');
+  ['uLen','uWid','uThk'].forEach(id=>document.getElementById(id).textContent = unit);
+  setGrade(grade); setSfCat(sfCat); setTab(tab); render();
+}
 function loadSaved(){
   try{
-    const raw=localStorage.getItem('slabValue_v2');
-    if(raw){ const st=JSON.parse(raw); if(st.bands) bands=st.bands; if(st.saved) saved=st.saved; }
+    const raw=localStorage.getItem('slabValue_v3');
+    if(raw){ const st=JSON.parse(raw);
+      if(st.bands)bands=st.bands; if(st.saved)saved=st.saved; if(st.sfRates)sfRates=st.sfRates;
+      if(st.grade)grade=st.grade; if(st.sfCat)sfCat=st.sfCat; if(st.tab)tab=st.tab; if(st.unit)unit=st.unit; }
   }catch(e){}
-  setGrade(grade); render();
+  applyState();
 }
 
 loadSaved();
@@ -348,9 +471,7 @@ calc();
 
 /* register service worker for offline */
 if('serviceWorker' in navigator){
-  window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){});
-  });
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
 }
 </script>
 </body>
